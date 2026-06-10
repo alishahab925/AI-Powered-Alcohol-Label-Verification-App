@@ -6,7 +6,7 @@ A browser-based tool that uses Google Gemini's vision AI to automatically verify
 
 ## Live Demo
 
-> **[Deployed URL goes here]**
+> **ai-powered-alcohol-label-verificati-nine.vercel.app**
 
 ---
 
