@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI-Powered Alcohol Label Verification App</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --ink: #0f1923; --ink-mid: #3a4a58; --ink-light: #7a8fa0;
+      --paper: #f5f7f9; --surface: #ffffff; --rule: #dde3ea;
+      --gold: #c8922a; --gold-light: #f5e8d0;
+      --pass: #1a7a4a; --pass-bg: #e6f4ed;
+      --fail: #b8292a; --fail-bg: #faeaea;
+      --warn: #7a5a10; --warn-bg: #fdf4e0;
+      --accent: #1e4d8c;
+    }
+    body { font-family: 'IBM Plex Sans', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; }
+    header {
+      background: var(--ink); color: #fff; padding: 0 2rem;
+      display: flex; align-items: center; gap: 1.5rem;
+      height: 56px; border-bottom: 3px solid var(--gold);
+    }
+    .header-seal { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: var(--gold); text-transform: uppercase; white-space: nowrap; }
+    .header-divider { width: 1px; height: 28px; background: #3a4a58; }
+    .header-title { font-size: 14px; font-weight: 600; letter-spacing: 0.04em; color: #fff; }
+    .header-badge { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--ink-light); text-transform: uppercase; }
+    main { max-width: 1100px; margin: 0 auto; padding: 2.5rem 2rem; display: grid; grid-template-columns: 420px 1fr; gap: 2rem; align-items: start; }
+    @media (max-width: 820px) { main { grid-template-columns: 1fr; padding: 1.5rem 1rem; } }
+    .panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; }
+    .panel-header { padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--rule); display: flex; align-items: baseline; gap: 0.75rem; }
+    .panel-label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-light); }
+    .panel-title { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .panel-body { padding: 1.25rem; }
+    .upload-zone { border: 2px dashed var(--rule); border-radius: 4px; padding: 2.5rem 1rem; text-align: center; cursor: pointer; transition: border-color 0.15s, background 0.15s; position: relative; }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: #f0f5ff; }
+    .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .upload-icon { width: 40px; height: 40px; margin: 0 auto 0.75rem; color: var(--ink-light); }
+    .upload-primary { font-size: 14px; font-weight: 500; color: var(--ink); margin-bottom: 0.25rem; }
+    .upload-secondary { font-size: 12px; color: var(--ink-light); }
+    .preview-wrap { position: relative; border-radius: 4px; overflow: hidden; background: #e8ecf0; margin-bottom: 1rem; }
+    .preview-wrap img { width: 100%; display: block; max-height: 340px; object-fit: contain; }
+    .preview-replace { position: absolute; top: 8px; right: 8px; background: rgba(15,25,35,0.7); color: #fff; font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 3px; cursor: pointer; border: none; font-family: inherit; transition: background 0.15s; }
+    .preview-replace:hover { background: rgba(15,25,35,0.9); }
+    .batch-toggle { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; cursor: pointer; user-select: none; }
+    .toggle-switch { width: 36px; height: 20px; background: var(--rule); border-radius: 10px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+    .toggle-switch.on { background: var(--accent); }
+    .toggle-switch::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-switch.on::after { left: 19px; }
+    .toggle-label { font-size: 13px; color: var(--ink-mid); }
+    .toggle-badge { font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; background: var(--gold-light); color: var(--gold); padding: 2px 6px; border-radius: 2px; }
+    .btn-verify { width: 100%; background: var(--ink); color: #fff; border: none; padding: 0.85rem; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.04em; border-radius: 3px; cursor: pointer; transition: background 0.15s; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .btn-verify:hover:not(:disabled) { background: #1e3048; }
+    .btn-verify:disabled { background: var(--ink-light); cursor: not-allowed; }
+    .results-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; text-align: center; color: var(--ink-light); gap: 0.75rem; }
+    .results-empty-icon { font-size: 2.5rem; opacity: 0.3; }
+    .results-empty-text { font-size: 13px; max-width: 240px; line-height: 1.5; }
+    .loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 2rem; gap: 1rem; text-align: center; }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--rule); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 13px; color: var(--ink-mid); }
+    .loading-sub { font-size: 11px; color: var(--ink-light); font-family: 'IBM Plex Mono', monospace; }
+    .verdict { display: flex; align-items: center; gap: 0.75rem; padding: 0.9rem 1.25rem; border-radius: 3px; margin-bottom: 1.25rem; font-weight: 600; font-size: 15px; }
+    .verdict.pass { background: var(--pass-bg); color: var(--pass); }
+    .verdict.fail { background: var(--fail-bg); color: var(--fail); }
+    .verdict-icon { font-size: 1.2rem; }
+    .verdict-label { flex: 1; }
+    .verdict-count { font-family: 'IBM Plex Mono', monospace; font-size: 12px; opacity: 0.8; }
+    .check-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .check-row { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.85rem 1rem; border-radius: 3px; border: 1px solid transparent; }
+    .check-row.pass { background: var(--pass-bg); border-color: #b8dece; }
+    .check-row.fail { background: var(--fail-bg); border-color: #f0c0c0; }
+    .check-row.warn { background: var(--warn-bg); border-color: #f0d890; }
+    .check-status { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+    .check-row.pass .check-status { background: var(--pass); color: #fff; }
+    .check-row.fail .check-status { background: var(--fail); color: #fff; }
+    .check-row.warn .check-status { background: var(--warn); color: #fff; }
+    .check-content { flex: 1; min-width: 0; }
+    .check-field { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mid); margin-bottom: 0.2rem; }
+    .check-found { font-size: 13px; color: var(--ink); font-family: 'IBM Plex Mono', monospace; word-break: break-word; line-height: 1.4; }
+    .check-note { font-size: 11px; color: var(--ink-light); margin-top: 0.2rem; line-height: 1.4; }
+    .batch-queue { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+    .batch-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem; background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; }
+    .batch-thumb { width: 40px; height: 40px; object-fit: cover; border-radius: 2px; flex-shrink: 0; }
+    .batch-name { font-size: 12px; color: var(--ink-mid); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .batch-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .batch-status-dot.pending { background: var(--rule); }
+    .batch-status-dot.running { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+    .batch-status-dot.done-pass { background: var(--pass); }
+    .batch-status-dot.done-fail { background: var(--fail); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .batch-remove { background: none; border: none; cursor: pointer; color: var(--ink-light); font-size: 14px; padding: 2px 4px; border-radius: 2px; transition: color 0.15s; }
+    .batch-remove:hover { color: var(--fail); }
+    .batch-result-card { border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; margin-bottom: 1rem; }
+    .batch-result-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: var(--paper); border-bottom: 1px solid var(--rule); cursor: pointer; user-select: none; }
+    .batch-result-header:hover { background: #edf0f4; }
+    .batch-result-name { font-size: 13px; font-weight: 500; flex: 1; }
+    .batch-result-pill { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; }
+    .batch-result-pill.pass { background: var(--pass-bg); color: var(--pass); }
+    .batch-result-pill.fail { background: var(--fail-bg); color: var(--fail); }
+    .batch-result-chevron { color: var(--ink-light); font-size: 12px; transition: transform 0.2s; }
+    .batch-result-chevron.open { transform: rotate(180deg); }
+    .batch-result-body { padding: 1rem; display: none; }
+    .batch-result-body.open { display: block; }
+    .section-divider { border: none; border-top: 1px solid var(--rule); margin: 1.25rem 0; }
+    .result-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .result-timestamp { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-light); letter-spacing: 0.06em; }
+    .result-model { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-light); }
+    .error-box { background: var(--fail-bg); border: 1px solid #f0c0c0; border-radius: 3px; padding: 0.9rem 1rem; font-size: 13px; color: var(--fail); display: flex; gap: 0.5rem; align-items: flex-start; }
+  </style>
+</head>
+<body>
+<header>
+  <span class="header-seal">TTB &mdash; Alcohol &amp; Tobacco Tax &amp; Trade Bureau</span>
+  <div class="header-divider"></div>
+  <span class="header-title">AI-Powered Alcohol Label Verification App</span>
+  <span class="header-badge">Prototype &nbsp;v0.1</span>
+</header>
+<main>
+  <div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-label">Step 1</span>
+        <span class="panel-title">Upload Label Image</span>
+      </div>
+      <div class="panel-body">
+        <div class="batch-toggle" onclick="toggleBatch()">
+          <div class="toggle-switch" id="batch-switch"></div>
+          <span class="toggle-label">Batch mode</span>
+          <span class="toggle-badge">Multi-label</span>
+        </div>
+        <div id="single-upload">
+          <div id="upload-zone" class="upload-zone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+            <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)" />
+            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            </svg>
+            <div class="upload-primary">Drop label image here</div>
+            <div class="upload-secondary">or click to browse &middot; JPG, PNG, WEBP</div>
+          </div>
+          <div id="preview-container" style="display:none; margin-top:1rem;">
+            <div class="preview-wrap">
+              <img id="preview-img" src="" alt="Label preview" />
+              <button class="preview-replace" onclick="resetSingle()">Replace</button>
+            </div>
+          </div>
+        </div>
+        <div id="batch-upload" style="display:none;">
+          <div id="batch-zone" class="upload-zone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleBatchDrop(event)">
+            <input type="file" id="batch-input" accept="image/*" multiple onchange="handleBatchSelect(event)" />
+            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+            <div class="upload-primary">Drop multiple label images</div>
+            <div class="upload-secondary">or click to browse &middot; up to 20 files</div>
+          </div>
+          <div id="batch-queue" class="batch-queue" style="margin-top:1rem;"></div>
+        </div>
+        <hr class="section-divider" />
+        <button class="btn-verify" id="verify-btn" onclick="runVerification()" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <span id="verify-label">Verify Label</span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-label">Step 2</span>
+        <span class="panel-title">Verification Results</span>
+      </div>
+      <div class="panel-body" id="results-area">
+        <div class="results-empty">
+          <div class="results-empty-icon">⚖️</div>
+          <div class="results-empty-text">Upload a label image to run a compliance check.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+<script>
+  const GEMINI_API_KEY = 'AQ.Ab8RN6J69vuT4TNRdg38YhK983Gwv5v8s8Exrkf9GPwOjZ23Kw';
+  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+  let singleFile = null, batchFiles = [], batchMode = false, isRunning = false;
+  const $ = id => document.getElementById(id);
+
+  function updateVerifyButton() {
+    const hasInput = batchMode ? batchFiles.length > 0 : singleFile !== null;
+    $('verify-btn').disabled = !hasInput || isRunning;
+    $('verify-label').textContent = batchMode ? `Verify ${batchFiles.length} Label${batchFiles.length !== 1 ? 's' : ''}` : 'Verify Label';
+  }
+
+  function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+  function handleDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+  function handleDrop(e) {
+    e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) setSingleFile(file);
+  }
+  function handleFileSelect(e) { if (e.target.files[0]) setSingleFile(e.target.files[0]); }
+
+  function setSingleFile(file) {
+    singleFile = file;
+    $('preview-img').src = URL.createObjectURL(file);
+    $('upload-zone').style.display = 'none';
+    $('preview-container').style.display = 'block';
+    updateVerifyButton();
+  }
+
+  function resetSingle() {
+    singleFile = null; $('file-input').value = '';
+    $('upload-zone').style.display = 'block';
+    $('preview-container').style.display = 'none';
+    updateVerifyButton();
+  }
+
+  function handleBatchDrop(e) { e.preventDefault(); e.currentTarget.classList.remove('drag-over'); addBatchFiles([...e.dataTransfer.files]); }
+  function handleBatchSelect(e) { addBatchFiles([...e.target.files]); }
+  function addBatchFiles(files) {
+    batchFiles = [...batchFiles, ...files.filter(f => f.type.startsWith('image/'))].slice(0, 20);
+    renderBatchQueue(); updateVerifyButton();
+  }
+  function removeBatchFile(idx) { batchFiles.splice(idx, 1); renderBatchQueue(); updateVerifyButton(); }
+
+  function renderBatchQueue(statuses = []) {
+    $('batch-queue').innerHTML = batchFiles.map((f, i) => {
+      const st = statuses[i] || 'pending';
+      return `<div class="batch-item">
+        <img class="batch-thumb" src="${URL.createObjectURL(f)}" alt="" />
+        <span class="batch-name">${f.name}</span>
+        <div class="batch-status-dot ${st}"></div>
+        ${st === 'pending' ? `<button class="batch-remove" onclick="removeBatchFile(${i})">✕</button>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  function toggleBatch() {
+    batchMode = !batchMode;
+    $('batch-switch').classList.toggle('on', batchMode);
+    $('single-upload').style.display = batchMode ? 'none' : 'block';
+    $('batch-upload').style.display = batchMode ? 'block' : 'none';
+    updateVerifyButton();
+  }
+
+  async function verifyLabel(file) {
+    const base64 = await fileToBase64(file);
+    const response = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { text: `You are a TTB alcohol label compliance checker. Analyze this label image and return ONLY valid JSON, no markdown.
+
+Return exactly:
+{
+  "brand_name": { "status": "pass|fail|warn", "found": "text or null", "note": "brief note" },
+  "class_type": { "status": "pass|fail|warn", "found": "text or null", "note": "brief note" },
+  "alcohol_content": { "status": "pass|fail|warn", "found": "text or null", "note": "brief note" },
+  "net_contents": { "status": "pass|fail|warn", "found": "text or null", "note": "brief note" },
+  "producer_info": { "status": "pass|fail|warn", "found": "text or null", "note": "brief note" },
+  "government_warning": { "status": "pass|fail|warn", "found": "text or null", "note": "brief note" },
+  "overall": "pass|fail"
+}
+
+Rules: pass=present+correct, fail=missing/wrong, warn=present but questionable.
+government_warning MUST have "GOVERNMENT WARNING:" in ALL CAPS or it fails.
+brand_name capitalization differences = warn not fail.` },
+          { inline_data: { mime_type: file.type || 'image/jpeg', data: base64 } }
+        ]}],
+        generationConfig: { temperature: 0.1 }
+      })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${response.status}`);
+    }
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return JSON.parse(text.replace(/```json|```/g, '').trim());
+  }
+
+  function fileToBase64(file) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);
+      r.onerror = () => rej(new Error('File read failed'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function runVerification() {
+    isRunning = true; updateVerifyButton();
+    if (batchMode) { await runBatch(); } else { await runSingle(); }
+    isRunning = false; updateVerifyButton();
+  }
+
+  async function runSingle() {
+    showLoading('Analyzing label...');
+    const t0 = Date.now();
+    try {
+      const result = await verifyLabel(singleFile);
+      showResults(result, singleFile.name, ((Date.now() - t0) / 1000).toFixed(1));
+    } catch (err) { showError(err.message); }
+  }
+
+  async function runBatch() {
+    const area = $('results-area');
+    area.innerHTML = `<div style="font-size:13px;color:var(--ink-mid);margin-bottom:1rem;">Processing <strong>${batchFiles.length}</strong> label${batchFiles.length !== 1 ? 's' : ''}...</div><div id="batch-results"></div>`;
+    const statuses = batchFiles.map(() => 'pending');
+    renderBatchQueue(statuses);
+    const batchResultsEl = document.getElementById('batch-results');
+    let passCount = 0, failCount = 0;
+    for (let i = 0; i < batchFiles.length; i++) {
+      statuses[i] = 'running'; renderBatchQueue(statuses);
+      try {
+        const result = await verifyLabel(batchFiles[i]);
+        statuses[i] = result.overall === 'pass' ? 'done-pass' : 'done-fail';
+        if (result.overall === 'pass') passCount++; else failCount++;
+        renderBatchQueue(statuses);
+        batchResultsEl.innerHTML += buildBatchCard(batchFiles[i].name, result);
+      } catch (err) {
+        statuses[i] = 'done-fail'; failCount++; renderBatchQueue(statuses);
+        batchResultsEl.innerHTML += `<div class="error-box" style="margin-bottom:0.5rem;"><span>⚠</span><div><strong>${batchFiles[i].name}</strong><br>${err.message}</div></div>`;
+      }
+    }
+    const summary = document.createElement('div');
+    summary.style.cssText = 'font-size:13px;color:var(--ink-mid);margin-bottom:1rem;padding:0.75rem 1rem;background:var(--paper);border:1px solid var(--rule);border-radius:3px;';
+    summary.innerHTML = `Batch complete &mdash; <strong style="color:var(--pass)">${passCount} passed</strong>, <strong style="color:var(--fail)">${failCount} failed</strong>`;
+    area.insertBefore(summary, area.firstChild.nextSibling);
+  }
+
+  function buildBatchCard(name, result) {
+    return `<div class="batch-result-card">
+      <div class="batch-result-header" onclick="toggleBatchCard(this)">
+        <span class="batch-result-name">${name}</span>
+        <span class="batch-result-pill ${result.overall}">${result.overall.toUpperCase()}</span>
+        <span class="batch-result-chevron">▼</span>
+      </div>
+      <div class="batch-result-body">${buildCheckList(result)}</div>
+    </div>`;
+  }
+
+  function toggleBatchCard(h) { h.nextElementSibling.classList.toggle('open'); h.querySelector('.batch-result-chevron').classList.toggle('open'); }
+
+  function showLoading(msg) {
+    $('results-area').innerHTML = `<div class="loading-state"><div class="spinner"></div><div class="loading-text">${msg}</div><div class="loading-sub">Usually takes 2–5 seconds</div></div>`;
+  }
+
+  function showError(msg) {
+    $('results-area').innerHTML = `<div class="error-box"><span>⚠</span><div><strong>Verification failed.</strong><br>${msg}</div></div>`;
+  }
+
+  function showResults(result, filename, elapsed) {
+    const overall = result.overall;
+    const fields = ['brand_name','class_type','alcohol_content','net_contents','producer_info','government_warning'];
+    const fails = fields.filter(f => result[f]?.status === 'fail').length;
+    const warns = fields.filter(f => result[f]?.status === 'warn').length;
+    const countText = overall === 'pass' ? (warns > 0 ? `${warns} warning${warns > 1 ? 's' : ''}` : 'All checks passed') : `${fails} issue${fails > 1 ? 's' : ''} found`;
+    const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    $('results-area').innerHTML = `
+      <div class="result-meta">
+        <span class="result-timestamp">${now} &middot; ${elapsed}s</span>
+        <span class="result-model">gemini-1.5-flash</span>
+      </div>
+      <div class="verdict ${overall}">
+        <span class="verdict-icon">${overall === 'pass' ? '✓' : '✕'}</span>
+        <span class="verdict-label">${overall === 'pass' ? 'Label Approved' : 'Label Rejected'}</span>
+        <span class="verdict-count">${countText}</span>
+      </div>
+      ${buildCheckList(result)}`;
+  }
+
+  function buildCheckList(result) {
+    const labels = { brand_name:'Brand Name', class_type:'Class / Type', alcohol_content:'Alcohol Content', net_contents:'Net Contents', producer_info:'Producer / Bottler Info', government_warning:'Government Warning Statement' };
+    const icons = { pass:'✓', fail:'✕', warn:'!' };
+    return `<div class="check-list">${Object.keys(labels).map(f => {
+      const c = result[f]; if (!c) return '';
+      const st = c.status || 'warn';
+      return `<div class="check-row ${st}">
+        <div class="check-status">${icons[st]}</div>
+        <div class="check-content">
+          <div class="check-field">${labels[f]}</div>
+          <div class="check-found">${c.found || '(not detected)'}</div>
+          ${c.note ? `<div class="check-note">${c.note}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+</script>
+</body>
+</html>
