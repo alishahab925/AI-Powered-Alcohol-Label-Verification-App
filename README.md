@@ -97,7 +97,7 @@ Multiple labels process sequentially with a live status indicator per file. A su
 ## Tools Used
 
 - **HTML / CSS / JavaScript** — no framework
-- **Google Gemini 1.5 Flash** — vision AI for label analysis (free tier)
+- **Google Gemini 2.5 Flash/Anthropic Claude** — vision AI for label analysis (free tier)
 - **IBM Plex Sans / IBM Plex Mono** — typography (Google Fonts)
 - **Vercel** — deployment
 
