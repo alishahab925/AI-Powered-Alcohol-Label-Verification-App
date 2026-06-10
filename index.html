@@ -43,6 +43,15 @@
     .preview-wrap img { width: 100%; display: block; max-height: 340px; object-fit: contain; }
     .preview-replace { position: absolute; top: 8px; right: 8px; background: rgba(15,25,35,0.7); color: #fff; font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 3px; cursor: pointer; border: none; font-family: inherit; transition: background 0.15s; }
     .preview-replace:hover { background: rgba(15,25,35,0.9); }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mid); margin-bottom: 0.4rem; }
+    .field input, .field select { width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--rule); border-radius: 3px; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; color: var(--ink); background: var(--paper); transition: border-color 0.15s; outline: none; }
+    .field input { font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+    .field input:focus, .field select:focus { border-color: var(--accent); }
+    .field-hint { font-size: 11px; color: var(--ink-light); margin-top: 0.3rem; }
+    .provider-tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .provider-tab { flex: 1; padding: 0.5rem; border: 1px solid var(--rule); border-radius: 3px; background: var(--paper); font-size: 12px; font-weight: 500; color: var(--ink-mid); cursor: pointer; text-align: center; transition: all 0.15s; font-family: inherit; }
+    .provider-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
     .batch-toggle { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; cursor: pointer; user-select: none; }
     .toggle-switch { width: 36px; height: 20px; background: var(--rule); border-radius: 10px; position: relative; transition: background 0.2s; flex-shrink: 0; }
     .toggle-switch.on { background: var(--accent); }
@@ -108,6 +117,7 @@
     .result-timestamp { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-light); letter-spacing: 0.06em; }
     .result-model { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--ink-light); }
     .error-box { background: var(--fail-bg); border: 1px solid #f0c0c0; border-radius: 3px; padding: 0.9rem 1rem; font-size: 13px; color: var(--fail); display: flex; gap: 0.5rem; align-items: flex-start; }
+    .info-box { background: #eef3ff; border: 1px solid #c0d0f0; border-radius: 3px; padding: 0.75rem 1rem; font-size: 11px; color: var(--accent); margin-bottom: 1rem; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -125,11 +135,13 @@
         <span class="panel-title">Upload Label Image</span>
       </div>
       <div class="panel-body">
+
         <div class="batch-toggle" onclick="toggleBatch()">
           <div class="toggle-switch" id="batch-switch"></div>
           <span class="toggle-label">Batch mode</span>
           <span class="toggle-badge">Multi-label</span>
         </div>
+
         <div id="single-upload">
           <div id="upload-zone" class="upload-zone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
             <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)" />
@@ -146,6 +158,7 @@
             </div>
           </div>
         </div>
+
         <div id="batch-upload" style="display:none;">
           <div id="batch-zone" class="upload-zone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleBatchDrop(event)">
             <input type="file" id="batch-input" accept="image/*" multiple onchange="handleBatchSelect(event)" />
@@ -158,16 +171,38 @@
           </div>
           <div id="batch-queue" class="batch-queue" style="margin-top:1rem;"></div>
         </div>
+
         <hr class="section-divider" />
+
+        <div class="field">
+          <label>AI Provider</label>
+          <div class="provider-tabs">
+            <button class="provider-tab active" id="tab-gemini" onclick="setProvider('gemini')">Google Gemini</button>
+            <button class="provider-tab" id="tab-anthropic" onclick="setProvider('anthropic')">Anthropic Claude</button>
+          </div>
+        </div>
+
+        <div class="info-box" id="provider-info">
+          Get a free Gemini API key at <strong>aistudio.google.com</strong> → Get API Key. Supports both <strong>AQ.</strong> and <strong>AIza...</strong> keys.
+        </div>
+
+        <div class="field">
+          <label id="key-label">Gemini API Key</label>
+          <input type="password" id="api-key" placeholder="AQ... or AIzaSy..." autocomplete="off" oninput="updateVerifyButton()" />
+          <div class="field-hint">Your key is never stored. Stays in this browser session only.</div>
+        </div>
+
         <button class="btn-verify" id="verify-btn" onclick="runVerification()" disabled>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
           </svg>
           <span id="verify-label">Verify Label</span>
         </button>
+
       </div>
     </div>
   </div>
+
   <div>
     <div class="panel">
       <div class="panel-header">
@@ -177,22 +212,39 @@
       <div class="panel-body" id="results-area">
         <div class="results-empty">
           <div class="results-empty-icon">⚖️</div>
-          <div class="results-empty-text">Upload a label image to run a compliance check.</div>
+          <div class="results-empty-text">Upload a label image and enter your API key to run a compliance check.</div>
         </div>
       </div>
     </div>
   </div>
 </main>
-<script>
-  const GEMINI_API_KEY = 'AQ.Ab8RN6J69vuT4TNRdg38YhK983Gwv5v8s8Exrkf9GPwOjZ23Kw';
-  const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
+<script>
   let singleFile = null, batchFiles = [], batchMode = false, isRunning = false;
+  let provider = 'gemini';
   const $ = id => document.getElementById(id);
 
+  function setProvider(p) {
+    provider = p;
+    $('tab-gemini').classList.toggle('active', p === 'gemini');
+    $('tab-anthropic').classList.toggle('active', p === 'anthropic');
+    $('api-key').value = '';
+    if (p === 'gemini') {
+      $('key-label').textContent = 'Gemini API Key';
+      $('api-key').placeholder = 'AQ... or AIzaSy...';
+      $('provider-info').innerHTML = 'Get a free Gemini API key at <strong>aistudio.google.com</strong> → Get API Key. Supports both <strong>AQ.</strong> and <strong>AIza...</strong> keys.';
+    } else {
+      $('key-label').textContent = 'Anthropic API Key';
+      $('api-key').placeholder = 'sk-ant-...';
+      $('provider-info').innerHTML = 'Get an Anthropic API key at <strong>console.anthropic.com</strong> → API Keys. Key starts with <strong>sk-ant-...</strong>';
+    }
+    updateVerifyButton();
+  }
+
   function updateVerifyButton() {
+    const key = $('api-key').value.trim();
     const hasInput = batchMode ? batchFiles.length > 0 : singleFile !== null;
-    $('verify-btn').disabled = !hasInput || isRunning;
+    $('verify-btn').disabled = !key || !hasInput || isRunning;
     $('verify-label').textContent = batchMode ? `Verify ${batchFiles.length} Label${batchFiles.length !== 1 ? 's' : ''}` : 'Verify Label';
   }
 
@@ -227,7 +279,6 @@
     renderBatchQueue(); updateVerifyButton();
   }
   function removeBatchFile(idx) { batchFiles.splice(idx, 1); renderBatchQueue(); updateVerifyButton(); }
-
   function renderBatchQueue(statuses = []) {
     $('batch-queue').innerHTML = batchFiles.map((f, i) => {
       const st = statuses[i] || 'pending';
@@ -248,16 +299,9 @@
     updateVerifyButton();
   }
 
-  async function verifyLabel(file) {
-    const base64 = await fileToBase64(file);
-    const response = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [
-          { text: `You are a TTB alcohol label compliance checker. Analyze this label image and return ONLY valid JSON, no markdown.
+  const PROMPT = `You are a TTB alcohol label compliance checker. Analyze this label image and return ONLY valid JSON, no markdown, no extra text.
 
-Return exactly:
+Return exactly this structure:
 {
   "brand_name": { "status": "pass|fail|warn", "found": "text or null", "note": "brief note" },
   "class_type": { "status": "pass|fail|warn", "found": "text or null", "note": "brief note" },
@@ -268,21 +312,68 @@ Return exactly:
   "overall": "pass|fail"
 }
 
-Rules: pass=present+correct, fail=missing/wrong, warn=present but questionable.
+Rules: pass=present and correct, fail=missing or wrong, warn=present but questionable.
 government_warning MUST have "GOVERNMENT WARNING:" in ALL CAPS or it fails.
-brand_name capitalization differences = warn not fail.` },
-          { inline_data: { mime_type: file.type || 'image/jpeg', data: base64 } }
-        ]}],
-        generationConfig: { temperature: 0.1 }
+brand_name capitalization differences = warn not fail.
+Poor image quality on a field = warn with note.`;
+
+  async function verifyWithGemini(file, apiKey) {
+    const base64 = await fileToBase64(file);
+    // FIX: Moved endpoint to gemini-2.5-flash and stripped URL param key to bypass AQ key validation restrictions
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey // FIX: Key is now passed safely as a header so AQ tokens work natively
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: file.type || 'image/jpeg', data: base64 } }] }],
+        generationConfig: { response_mime_type: "application/json", temperature: 0.1 }
       })
     });
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `API error ${response.status}`);
+      throw new Error(err.error?.message || `Gemini API error ${response.status}`);
     }
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     return JSON.parse(text.replace(/```json|```/g, '').trim());
+  }
+
+  async function verifyWithAnthropic(file, apiKey) {
+    const base64 = await fileToBase64(file);
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01', // FIX: Included safety header required for CORS client requests
+        'anthropic-dangerously-allow-the-user-to-the-browser': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 1000,
+        system: 'You are a TTB alcohol label compliance checker. Always respond with valid JSON only — no markdown, no extra text.',
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
+          { type: 'text', text: PROMPT }
+        ]}]
+      })
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Anthropic API error ${response.status}`);
+    }
+    const data = await response.json();
+    const text = data.content.map(b => b.text || '').join('');
+    return JSON.parse(text.replace(/```json|```/g, '').trim());
+  }
+
+  async function verifyLabel(file) {
+    const apiKey = $('api-key').value.trim();
+    if (provider === 'gemini') return verifyWithGemini(file, apiKey);
+    return verifyWithAnthropic(file, apiKey);
   }
 
   function fileToBase64(file) {
@@ -363,10 +454,11 @@ brand_name capitalization differences = warn not fail.` },
     const warns = fields.filter(f => result[f]?.status === 'warn').length;
     const countText = overall === 'pass' ? (warns > 0 ? `${warns} warning${warns > 1 ? 's' : ''}` : 'All checks passed') : `${fails} issue${fails > 1 ? 's' : ''} found`;
     const now = new Date().toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    const modelName = provider === 'gemini' ? 'gemini-2.5-flash' : 'claude-3.5-sonnet';
     $('results-area').innerHTML = `
       <div class="result-meta">
         <span class="result-timestamp">${now} &middot; ${elapsed}s</span>
-        <span class="result-model">gemini-1.5-flash</span>
+        <span class="result-model">${modelName}</span>
       </div>
       <div class="verdict ${overall}">
         <span class="verdict-icon">${overall === 'pass' ? '✓' : '✕'}</span>
